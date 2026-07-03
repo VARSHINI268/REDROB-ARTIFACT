@@ -1,0 +1,152 @@
+Build REDROB ARTIFACT — Full Stack Autonomous Developer Verification Agent
+
+Build a complete full-stack web app called REDROB ARTIFACT. This is an autonomous multi-agent AI system that verifies developer talent by cross-checking resume/skill claims against real GitHub activity and outputs a credibility score with evidence.
+TECH STACK:
+
+Frontend: React (port 3000)
+Backend: Node.js + Express (port 5000)
+AI: Gemini 2.0 Flash API for parsing and verification logic
+Data: GitHub REST API (public endpoints, no auth needed)
+Storage: In-memory cache (simple JS object) to avoid re-fetching same GitHub profile repeatedly
+
+
+FRONTEND (React):
+Dark theme UI with this exact color scheme:
+
+Background: #0a0a0a
+Primary accent: #00ffcc (teal/cyan)
+Text: white
+Error: #ff4444
+Font: monospace throughout
+
+UI Layout:
+
+Header: logo text "redrob ARTIFACT" on left, "LAUNCH AGENT" button on top right (teal background, black text)
+Main form (centered, dark card):
+
+Input field: "GitHub Profile URL or Username" (placeholder: e.g. github.com/username or just username)
+Textarea: "RESUME TEXT" — user pastes their skills/resume here
+Big teal button at bottom: "⚡ VERIFY IDENTITY ARTIFACT"
+
+
+Results section (shown after verification):
+
+Big score display: e.g. "ARTIFACT SCORE: 78/100"
+Skill verdicts as colored badges: green = VERIFIED, red = UNVERIFIED, orange = PARTIAL
+Evidence summary paragraph
+GitHub summary: total repos, top languages, most active repo
+Loading state while agent is running: show "AGENT RUNNING..." with a pulsing animation
+Error state: red error box if something fails
+
+
+
+API call from frontend:
+
+On button click, POST to http://localhost:5000/verify with body { githubUrl, resumeText }
+Handle both full URL format (https://github.com/username) and plain username — strip to just username before sending
+Display returned JSON result in the results section
+
+
+BACKEND (Node.js + Express):
+Setup:
+
+Enable CORS for http://localhost:3000
+Parse JSON request bodies
+Run on port 5000
+Two endpoints:
+
+GET /health — returns { status: "ok" }
+POST /verify — main agent pipeline endpoint
+
+
+
+Agent Pipeline (run these in sequence inside /verify):
+Agent 1 — Intake/Parsing Agent:
+
+Call Gemini 2.0 Flash API with the resume text
+Prompt: "Extract all technical skills, frameworks, and languages from this resume text. Return ONLY a JSON array of skill names, nothing else. Example: ['Java', 'React', 'Node.js']"
+Parse the returned JSON array of skills
+
+Agent 2 — GitHub Retrieval Agent:
+
+Extract username from input (strip https://github.com/ if present)
+Call https://api.github.com/users/{username} — get profile info
+Call https://api.github.com/users/{username}/repos?per_page=100 — get all public repos
+From repos extract: repo names, languages, star count, fork count, pushed_at dates, sizes
+Build a summary: total repos, unique languages used, top 3 most active repos by pushed_at
+
+Agent 3 — Verification Agent:
+
+For each skill from Agent 1, check if that language/framework appears in the GitHub repos fetched by Agent 2
+Verdict logic:
+
+VERIFIED: skill appears in 2+ repos with meaningful commit activity (size > 0, pushed in last 2 years)
+PARTIAL: skill appears in 1 repo only
+UNVERIFIED: skill not found in any repo
+
+
+Call Gemini again with the skill verdicts + repo data to generate a human-readable evidence summary paragraph
+
+Agent 4 — Scoring Agent:
+
+Calculate score: (verified skills × 100 + partial skills × 50) / (total skills × 100) × 100
+Round to nearest integer, cap at 100
+
+Output — return this JSON:
+json{
+  "score": 78,
+  "verdicts": {
+    "Java": "verified",
+    "React": "partial",
+    "Python": "unverified"
+  },
+  "evidence": "Java strongly verified across 4 active repositories with recent commits. React found in 1 project. Python not found in any public repository.",
+  "github_summary": {
+    "username": "VARSHINI268",
+    "total_repos": 12,
+    "top_languages": ["Java", "JavaScript", "HTML"],
+    "most_active_repo": "project-xyz",
+    "profile_url": "https://github.com/VARSHINI268"
+  }
+}
+Error handling:
+
+If GitHub returns 404, return error: "GitHub profile not found. Check the username."
+If Gemini API fails, return error: "AI verification failed. Try again."
+If resume text is empty, return error: "Please paste your resume or skills list."
+
+
+ENVIRONMENT VARIABLES (use .env file):
+GEMINI_API_KEY=your_key_here
+PORT=5000
+Never hardcode API keys. Use dotenv in Node.
+
+PROJECT STRUCTURE:
+redrob-artifact/
+├── backend/
+│   ├── server.js
+│   ├── agents/
+│   │   ├── parsingAgent.js
+│   │   ├── githubAgent.js
+│   │   ├── verificationAgent.js
+│   │   └── scoringAgent.js
+│   ├── .env
+│   └── package.json
+└── frontend/
+    ├── src/
+    │   ├── App.jsx
+    │   ├── App.css
+    └── package.json
+
+IMPORTANT REQUIREMENTS:
+
+Must use real live GitHub API — no mocked data
+Must use real Gemini API — no hardcoded responses
+Both servers must run simultaneously (use two terminals or a concurrently setup)
+Frontend must handle loading, error, and success states cleanly
+The entire app must work end-to-end: enter a GitHub username + paste skills → click verify → see real score with real evidence pulled from that person's actual GitHub profile
+
+Start by scaffolding the full project structure, then build backend agents one by one, test the /verify endpoint with a real GitHub username, then build the frontend and connect both.
+
+
+That's the entire thing in one shot — paste it directly into Replit and it'll build the whole system. Make sure you add your Gemini API key in the .env file once it scaffolds.

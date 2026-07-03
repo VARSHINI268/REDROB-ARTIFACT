@@ -1,0 +1,138 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: verification
+    description: Developer credibility verification operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /verify:
+    post:
+      operationId: verifyDeveloper
+      tags: [verification]
+      summary: Run the verification agent pipeline
+      description: Parses resume text, cross-checks claimed skills against real GitHub activity, and returns a credibility score with evidence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationInput"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationError"
+        "404":
+          description: GitHub profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationError"
+        "502":
+          description: AI verification failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationError"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    VerificationInput:
+      type: object
+      required:
+        - githubUrl
+        - resumeText
+      properties:
+        githubUrl:
+          type: string
+          minLength: 1
+          description: GitHub profile URL or plain username
+        resumeText:
+          type: string
+          minLength: 1
+          description: Pasted resume or skills list text
+    VerificationError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+    SkillVerdict:
+      type: string
+      enum: [verified, partial, unverified]
+    GithubSummary:
+      type: object
+      required:
+        - username
+        - total_repos
+        - top_languages
+        - most_active_repo
+        - profile_url
+      properties:
+        username:
+          type: string
+        total_repos:
+          type: integer
+        top_languages:
+          type: array
+          items:
+            type: string
+        most_active_repo:
+          type: ["string", "null"]
+        profile_url:
+          type: string
+    VerificationResult:
+      type: object
+      required:
+        - score
+        - verdicts
+        - evidence
+        - github_summary
+      properties:
+        score:
+          type: integer
+        verdicts:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/SkillVerdict"
+        evidence:
+          type: string
+        github_summary:
+          $ref: "#/components/schemas/GithubSummary"
+
