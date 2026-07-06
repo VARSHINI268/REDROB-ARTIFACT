@@ -45,31 +45,20 @@ export async function getRepoLanguages(owner, repo) {
   }
 }
 
-export async function getRepoCommits(owner, repo) {
-  try {
-    const response = await githubClient.get(`/repos/${owner}/${repo}/commits`, {
-      params: {
-        per_page: 1,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.warn(`Failed to fetch commits for ${owner}/${repo}:`, error.message);
-    return [];
-  }
-}
+export async function enrichRepoData(owner, repo, repoData = {}) {
+  const languages = await getRepoLanguages(owner, repo);
+  const languageKeys = Object.keys(languages);
 
-export async function enrichRepoData(owner, repo) {
-  const [languages, commits] = await Promise.all([
-    getRepoLanguages(owner, repo),
-    getRepoCommits(owner, repo),
-  ]);
+  const topLanguage =
+    languageKeys.length > 0
+      ? languageKeys.reduce((a, b) => (languages[a] > languages[b] ? a : b))
+      : null;
 
   return {
-    languages: Object.keys(languages),
-    commitCount: commits.length > 0 ? 1 : 0,
-    topLanguage: Object.keys(languages).reduce((a, b) =>
-      languages[a] > languages[b] ? a : b
-    ),
+    languages: languageKeys,
+    commitCount: repoData.size || 0,
+    repoSize: repoData.size || 0,
+    lastPushedAt: repoData.pushed_at || null,
+    topLanguage,
   };
 }

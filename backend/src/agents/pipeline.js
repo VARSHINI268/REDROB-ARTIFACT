@@ -21,8 +21,42 @@ export async function verificationPipeline(githubUsername, resumeText) {
     // Step 4: Calculate score
     const finalResult = scoringAgent(verdicts);
 
+    const verdictsMap = finalResult.breakdown.reduce((acc, item) => {
+      acc[item.skill] = item.verdict;
+      return acc;
+    }, {});
+
+    const evidenceSummary = finalResult.breakdown
+      .map((item) => {
+        if (item.verdict === 'verified') {
+          return `${item.skill}: ${item.evidenceRepos} active repos found`;
+        }
+        if (item.verdict === 'partially_verified') {
+          return `${item.skill}: ${item.evidenceRepos} repos partially match`;
+        }
+        return `${item.skill}: no repos found`;
+      })
+      .join('. ');
+
+    const githubSummary = {
+      total_repos: githubData.repos.length,
+      top_languages: Object.entries(githubData.extractedLanguages || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([lang]) => lang),
+      most_active_repo:
+        githubData.repos
+          .slice()
+          .sort((a, b) => (b.repoSize || 0) - (a.repoSize || 0))[0]?.name || null,
+    };
+
     const output = {
       status: 'success',
+      score: finalResult.score,
+      verdicts: verdictsMap,
+      evidence: evidenceSummary || finalResult.summary,
+      github_summary: githubSummary,
+      breakdown: finalResult.breakdown,
       candidate: {
         githubUsername,
         profileUrl: githubData.profile.profileUrl,

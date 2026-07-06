@@ -25,7 +25,7 @@ export async function retrievalAgent(githubUsername) {
     const enrichedRepos = await Promise.all(
       repos.slice(0, 20).map(async (repo) => {
         try {
-          const enriched = await enrichRepoData(githubUsername, repo.name);
+          const enriched = await enrichRepoData(githubUsername, repo.name, repo);
           return {
             name: repo.name,
             url: repo.html_url,
@@ -35,6 +35,9 @@ export async function retrievalAgent(githubUsername) {
             languages: enriched.languages,
             topLanguage: enriched.topLanguage,
             commitCount: enriched.commitCount,
+            repoSize: enriched.repoSize,
+            lastPushedAt: enriched.lastPushedAt,
+            updatedAt: repo.updated_at,
             isForked: repo.fork,
           };
         } catch (error) {
@@ -46,6 +49,10 @@ export async function retrievalAgent(githubUsername) {
             stars: repo.stargazers_count,
             forks: repo.forks_count,
             languages: [],
+            repoSize: repo.size || 0,
+            lastPushedAt: repo.pushed_at || null,
+            updatedAt: repo.updated_at,
+            isForked: repo.fork,
           };
         }
       })
